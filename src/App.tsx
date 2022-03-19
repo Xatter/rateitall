@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import logo from './logo.svg';
 import { ChromeMessage, Sender } from "./types";
+import Rating from "./Rating";
+
 import './App.css';
+import { isPropertySignature } from 'typescript';
 
 function App() {
   const [url, setUrl] = useState<string>('');
@@ -57,6 +60,7 @@ function App() {
         <p>URL:</p>
         <p>{url}</p>
         <button onClick={sendTestMessage}>Send Message</button>
+        <Rating rating={3}/>
       </header>
     </div>
   );
