@@ -3,7 +3,24 @@ export enum Sender {
     Content
 }
 
+export enum MessageType {
+    Selection,
+    Rating
+}
+
+export interface SelectElementMessage {
+    url : string,
+    path : string,
+    text : string
+}
+
+export interface RatingMessage {
+    url : string,
+    rating : Number
+}
+
 export interface ChromeMessage {
     from: Sender,
-    message: any
+    type: MessageType,
+    message: SelectElementMessage | RatingMessage
 }

@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import logo from './logo.svg';
-import { ChromeMessage, Sender } from "./types";
-import Rating from "./Rating";
+import { MessageType, Sender } from "./types";
+import Rating from 'react-rating';
 
 import './App.css';
 import { isPropertySignature } from 'typescript';
 
 function App() {
   const [url, setUrl] = useState<string>('');
-  const [responseFromContent, setResponseFromContent] = useState<string>('');
 
   useEffect(() => {
     const queryInfo = { active: true, lastFocusedWindow: true };
@@ -18,40 +17,18 @@ function App() {
     })
   });
 
-  const sendTestMessage = () => {
-    const message: ChromeMessage = {
-      from: Sender.React,
-      message: "Hello from React",
-    };
-
-    const queryInfo: chrome.tabs.QueryInfo = {
-      active: true,
-      currentWindow: true
-    };
-
-    /**
-     * We can't use "chrome.runtime.sendMessage" for sending messages from React.
-     * For sending messages from React we need to specify which tab to send it to.
-     */
-    chrome.tabs && chrome.tabs.query(queryInfo, tabs => {
-      const currentTabId = tabs[0].id;
-      /**
-       * Sends a single message to the content script(s) in the specified tab,
-       * with an optional callback to run when a response is sent back.
-       *
-       * The runtime.onMessage event is fired in each content script running
-       * in the specified tab for the current extension.
-       */
-      if (currentTabId !== undefined) {
-        chrome.tabs.sendMessage(
-          currentTabId,
-          message,
-          (response) => {
-            setResponseFromContent(response);
-          });
+  const sendRating = (newValue: number) => {
+    chrome.runtime.sendMessage(
+      {
+        from: Sender.React,
+        type: MessageType.Rating,
+        message: {
+          url: url,
+          rating: newValue
+        }
       }
-    });
-  }
+    );
+  };
 
   return (
     <div className="App">
@@ -59,8 +36,7 @@ function App() {
         <img src={logo} className="App-logo" alt="logo" />
         <p>URL:</p>
         <p>{url}</p>
-        <button onClick={sendTestMessage}>Send Message</button>
-        <Rating rating={3}/>
+        <Rating onChange={sendRating} />
       </header>
     </div>
   );
