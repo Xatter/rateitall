@@ -11,7 +11,7 @@ function App() {
 
   useEffect(() => {
     const queryInfo = { active: true, lastFocusedWindow: true };
-    chrome.tabs && chrome.tabs.query(queryInfo, tabs => {
+    browser.tabs && browser.tabs.query(queryInfo).then(tabs => {
       const url = tabs[0].url || '';
       setUrl(url);
     })
@@ -24,15 +24,21 @@ function App() {
       rating: newValue
     }
 
-    chrome.runtime.sendMessage(message);
+    browser.runtime.sendMessage(message);
   };
+
+  const getAllRatings = () => {
+    let message = {
+      type: MessageType.RatingsQuery
+    }
+
+    browser.runtime.sendMessage(message);
+  }
 
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>URL:</p>
-        <p>{url}</p>
+        <button onClick={getAllRatings}>Ratings</button>
         <Rating onChange={sendRating} />
       </header>
     </div>

@@ -1,6 +1,7 @@
 export enum MessageType {
     Selection,
-    Rating
+    Rating,
+    RatingsQuery
 }
 
 export type SelectElementMessage = {
@@ -16,4 +17,8 @@ export type RatingMessage = {
     rating : Number
 }
 
-export type AppMessage = SelectElementMessage | RatingMessage;
+export type RatingsQueryMessage = {
+    type: MessageType.RatingsQuery
+}
+
+export type AppMessage = SelectElementMessage | RatingMessage | RatingsQueryMessage;

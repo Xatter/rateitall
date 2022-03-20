@@ -12,8 +12,7 @@ function getPathTo(element: HTMLElement): string | undefined {
         return '//*[@id="' + element.id + '"]';
     if (element === document.body)
         return element.tagName;
-
-    var ix = 0;
+var ix = 0;
     if(element.parentNode !== null && element.parentNode.children !== null) {
         var siblings = element.parentNode.childNodes;
         for (var i = 0; i < siblings.length; i++) {
@@ -47,3 +46,5 @@ document.addEventListener("mouseup", (_) => {
         )
     }
 }, )
+
+// document.evaluate('//*[@id="__next"]/MAIN[1]/DIV[2]/DIV[1]/DIV[1]/H1[1]', document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
