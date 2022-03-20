@@ -45,6 +45,27 @@ document.addEventListener("mouseup", (_) => {
             }
         )
     }
-}, )
+})
+
+let getResultsQueryMessage = {
+    type: MessageType.RatingsQuery,
+    url: document.location.href
+};
+
+browser.runtime.sendMessage(getResultsQueryMessage).then(r => {
+    console.log("Results:", r);
+    Object.keys(r).forEach(key => {
+        let element = document.evaluate(key, document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue;
+        if (element !== null) {
+            const div = document.createElement("div");
+            element.parentElement?.appendChild(div);
+
+            const span = document.createElement("span");
+            span.innerText = r[key];
+            div.appendChild(span);
+            div.appendChild(element);
+        }
+    })
+});
 
 // document.evaluate('//*[@id="__next"]/MAIN[1]/DIV[2]/DIV[1]/DIV[1]/H1[1]', document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;

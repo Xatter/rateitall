@@ -19,6 +19,7 @@ export type RatingMessage = {
 
 export type RatingsQueryMessage = {
     type: MessageType.RatingsQuery
+    url: string
 }
 
 export type AppMessage = SelectElementMessage | RatingMessage | RatingsQueryMessage;
