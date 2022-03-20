@@ -12,8 +12,11 @@ function getPathTo(element: HTMLElement): string | undefined {
         return '//*[@id="' + element.id + '"]';
     if (element === document.body)
         return element.tagName;
-var ix = 0;
-    if(element.parentNode !== null && element.parentNode.children !== null) {
+    if (element.hasAttribute("rate-it-all"))
+        return getPathTo(<HTMLElement>element.parentNode);
+
+    var ix = 0;
+    if (element.parentNode !== null && element.parentNode.children !== null) {
         var siblings = element.parentNode.childNodes;
         for (var i = 0; i < siblings.length; i++) {
             var sibling = <HTMLElement>siblings[i];
@@ -55,9 +58,10 @@ let getResultsQueryMessage = {
 browser.runtime.sendMessage(getResultsQueryMessage).then(r => {
     console.log("Results:", r);
     Object.keys(r).forEach(key => {
-        let element = document.evaluate(key, document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue;
+        let element = document.evaluate(key, document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         if (element !== null) {
             const div = document.createElement("div");
+            div.setAttribute("rate-it-all", "true");
             element.parentElement?.appendChild(div);
 
             const span = document.createElement("span");

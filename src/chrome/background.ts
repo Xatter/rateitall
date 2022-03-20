@@ -30,8 +30,15 @@ chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, response
                 return;
             }
 
-            allRatings[url][currentSelection] = m.rating;
-            await browser.storage.local.set({ [url]: allRatings[url] });
+            console.log("Current: ", allRatings[url]);
+            let updatedRatings = {
+                ...allRatings[url],
+                [currentSelection]:m.rating
+            }
+
+            console.log("Updated: ", updatedRatings);
+
+            await browser.storage.local.set({ [url]: updatedRatings });
         }
     } else if (m.type === MessageType.RatingsQuery) {
         let url = m.url
