@@ -1,26 +1,19 @@
-export enum Sender {
-    React,
-    Content
-}
-
 export enum MessageType {
     Selection,
     Rating
 }
 
-export interface SelectElementMessage {
-    url : string,
-    path : string,
+export type SelectElementMessage = {
+    type : MessageType.Selection
+    url : string
+    path : string
     text : string
 }
 
-export interface RatingMessage {
-    url : string,
+export type RatingMessage = {
+    type: MessageType.Rating
+    url : string
     rating : Number
 }
 
-export interface ChromeMessage {
-    from: Sender,
-    type: MessageType,
-    message: SelectElementMessage | RatingMessage
-}
+export type AppMessage = SelectElementMessage | RatingMessage;

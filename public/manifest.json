@@ -30,8 +30,5 @@
   },
   "permissions": [
     "activeTab"
-  ],
-  "optional_permissions": [
-    "<all_urls>"
   ]
 }

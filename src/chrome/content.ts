@@ -1,6 +1,6 @@
-import { ChromeMessage, MessageType, Sender } from "../types";
+import { AppMessage, MessageType } from "../types";
 
-const messagesListener = (message: ChromeMessage, sender: any, response: any) => {
+const messagesListener = (message: AppMessage, sender: any, response: any) => {
     console.log('[content.js]. Message received', {
         message,
         sender
@@ -39,13 +39,10 @@ document.addEventListener("mouseup", (_) => {
 
         chrome.runtime.sendMessage(
             {
-                from: Sender.Content,
                 type: MessageType.Selection,
-                messagage: {
-                    url: document.location.href,
-                    path: path,
-                    text: selection.toString()
-                }
+                url: document.location.href,
+                path: path,
+                text: selection.toString()
             }
         )
     }

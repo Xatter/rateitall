@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import logo from './logo.svg';
-import { MessageType, Sender } from "./types";
+import { RatingMessage, MessageType } from "./types";
 import Rating from 'react-rating';
 
 import './App.css';
@@ -18,16 +18,13 @@ function App() {
   });
 
   const sendRating = (newValue: number) => {
-    chrome.runtime.sendMessage(
-      {
-        from: Sender.React,
-        type: MessageType.Rating,
-        message: {
-          url: url,
-          rating: newValue
-        }
-      }
-    );
+    let message: RatingMessage = {
+      type: MessageType.Rating,
+      url: url,
+      rating: newValue
+    }
+
+    chrome.runtime.sendMessage(message);
   };
 
   return (
