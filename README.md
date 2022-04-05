@@ -1,43 +1,49 @@
-# Getting Started with Create React App
+# Mr. Rate It All
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+# What?
+
+Mr. Rate It All is a chrome/firefox extension that allows you to rate anything you can select on a webpage. Specifically I made this so I could rate individual dishes on online ordering sites such as Grubhub. Because, if we're honest, the idea that "this is a good place" is insufficient. They're really only good at a handful of the items on their menu, and I want to remember:
+
+* What item's I've already tried
+* Which ones were good or not so good
+* Want to be able to rate things without affecting their overall rating in the system just because I disagreed or had a bad experience with a particular dish
+
+As such all the ratings are kept locally on your browser and never transmitted anywhere else for "sharing" or spying of any kind.
+
+## Build and develop locally
+
+    git pull https://github.com/xatter/rateitall
+    cd rateitall
+    npm build
+
+Once built, you can do
+
+On Firefox:
+
+`about:debugging#/runtime/this-firefox`
+
+Click `Load Temporary Add-on`
+Navigate to `rateitall/build/static/manifest.json`
+
+
+On Chrome:
+
+...
+
 
 ## Available Scripts
 
 In the project directory, you can run:
 
-### `npm start`
+### `npm build`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+This builds the typescript and puts the compiled extension into `build/static` so it can be loaded in the browser for debugging. Currently only "production builds" are supported (minimized JS which is difficult to debug.)
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+When there are tests this will run them.
 
 ## Learn More
 

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import logo from './logo.svg';
 import { RatingMessage, MessageType } from "./types";
 import Rating from 'react-rating';
 
