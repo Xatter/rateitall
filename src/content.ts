@@ -1,11 +1,5 @@
-import { PageRatings, AppMessage, MessageType } from "../types";
+import { PageRatings, AppMessage, MessageType, RatingType } from "./types";
 
-const messagesListener = (message: AppMessage, sender: any, response: any) => {
-    console.log('[content.js]. Message received', {
-        message,
-        sender
-    });
-}
 
 function getPathTo(element: HTMLElement): string | undefined {
     if (element.id !== '')
@@ -28,7 +22,24 @@ function getPathTo(element: HTMLElement): string | undefined {
     }
 }
 
-chrome.runtime.onMessage.addListener(messagesListener);
+chrome.runtime.onMessage.addListener((message: AppMessage, sender: any, response: any) => {
+    console.debug('[content.js]. Message received', {
+        message,
+        sender
+    });
+
+    switch(message.type) {
+        case MessageType.Selection:
+            break;
+        case MessageType.Rated:
+            if(message.ratingType === RatingType.Added) {
+                addRatingWhenReady(message.path, message.rating);
+            }
+            break;
+        default:
+            console.error("[content.js] Unknown message", message);
+    }
+});
 
 document.addEventListener("mouseup", (_) => {
     let selection = document.getSelection();
@@ -52,6 +63,14 @@ document.addEventListener("mouseup", (_) => {
 
 function replaceSingleElement(element : Node | null, rating : number) {
     if (element !== null) {
+        // const observer = new MutationObserver((mutations : MutationRecord[], observer:MutationObserver) => {
+        //     for(const mutation of mutations) {
+        //         console.debug("Mutation:", mutation);
+        //     }
+        // });
+
+        // observer.observe(element);
+
         const div = document.createElement("div");
         div.setAttribute("rate-it-all", "true");
         div.className = "rate-it-all";
@@ -80,22 +99,31 @@ function addRatingWhenReady(xpath: string, rating: number) {
     const isReadyInterval = setInterval(() => {
         let xpathResult = document.evaluate(xpath, document.body, null, XPathResult.ANY_TYPE, null);
         console.debug(xpathResult);
-        if (xpathResult.resultType === XPathResult.FIRST_ORDERED_NODE_TYPE) {
-            clearInterval(isReadyInterval);
-            replaceSingleElement(xpathResult.singleNodeValue, rating);
-        } else if (xpathResult.resultType === XPathResult.UNORDERED_NODE_ITERATOR_TYPE || xpathResult.resultType === xpathResult.ORDERED_NODE_ITERATOR_TYPE) {
-            var node : Node | null = null;
-            while(node = xpathResult.iterateNext()) {
-                console.debug("Node: ", node);
-                console.debug("Clearing Interval", isReadyInterval);
+
+        switch(xpathResult.resultType) {
+            case XPathResult.FIRST_ORDERED_NODE_TYPE:
                 clearInterval(isReadyInterval);
-                replaceSingleElement(node, rating);
-            }
-        } else if (xpathResult.resultType === XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE || xpathResult.resultType === xpathResult.ORDERED_NODE_SNAPSHOT_TYPE) {
-            for(var i = 0;i<xpathResult.snapshotLength;i++) {
-                clearInterval(isReadyInterval);
-                replaceSingleElement(xpathResult.snapshotItem(i), rating);
-            }
+                replaceSingleElement(xpathResult.singleNodeValue, rating);
+                break;
+            case XPathResult.UNORDERED_NODE_ITERATOR_TYPE:
+            case XPathResult.ORDERED_NODE_ITERATOR_TYPE:
+                var node : Node | null = null;
+                while(node = xpathResult.iterateNext()) {
+                    console.debug("Node: ", node);
+                    console.debug("Clearing Interval", isReadyInterval);
+                    clearInterval(isReadyInterval);
+                    replaceSingleElement(node, rating);
+                }
+                break;
+            case xpathResult.UNORDERED_NODE_SNAPSHOT_TYPE:
+            case xpathResult.ORDERED_NODE_SNAPSHOT_TYPE:
+                for(var i = 0;i<xpathResult.snapshotLength;i++) {
+                    clearInterval(isReadyInterval);
+                    replaceSingleElement(xpathResult.snapshotItem(i), rating);
+                }
+                break;
+        default:
+            console.error("Unhandled xpath result type", xpathResult.resultType);
         }
     }, 500);
     console.debug("Setting Interval", isReadyInterval);

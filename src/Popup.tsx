@@ -3,10 +3,9 @@ import logo from './logo.svg';
 import { RatingMessage, MessageType } from "./types";
 import Rating from 'react-rating';
 
-import './App.css';
-import { isPropertySignature } from 'typescript';
+import './Popup.css';
 
-function App() {
+function Popup() {
   const [url, setUrl] = useState<string>('');
 
   useEffect(() => {
@@ -45,4 +44,4 @@ function App() {
   );
 }
 
-export default App;
+export default Popup;

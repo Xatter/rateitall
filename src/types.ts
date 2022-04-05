@@ -4,7 +4,13 @@ export type Ratings = {[url: string]: PageRatings};
 export enum MessageType {
     Selection,
     Rating,
-    RatingsQuery
+    RatingsQuery,
+    Rated
+}
+
+export enum RatingType {
+    Added,
+    Updated
 }
 
 export type SelectElementMessage = {
@@ -20,9 +26,17 @@ export type RatingMessage = {
     rating : number
 }
 
+export type RatedMessage = {
+    type : MessageType.Rated,
+    ratingType: RatingType,
+    url : string,
+    path : string,
+    rating : number
+}
+
 export type RatingsQueryMessage = {
     type: MessageType.RatingsQuery
     url: string
 }
 
-export type AppMessage = SelectElementMessage | RatingMessage | RatingsQueryMessage;
+export type AppMessage = SelectElementMessage | RatingMessage | RatingsQueryMessage | RatedMessage;
