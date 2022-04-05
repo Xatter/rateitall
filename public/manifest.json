@@ -32,5 +32,9 @@
   "permissions": [
     "activeTab",
     "storage"
+  ],
+  "web_accessible_resources": [
+    "solid-start.svg",
+    "star.svg"
   ]
 }

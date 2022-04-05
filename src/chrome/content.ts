@@ -1,4 +1,4 @@
-import { AppMessage, MessageType } from "../types";
+import { PageRatings, AppMessage, MessageType } from "../types";
 
 const messagesListener = (message: AppMessage, sender: any, response: any) => {
     console.log('[content.js]. Message received', {
@@ -50,26 +50,68 @@ document.addEventListener("mouseup", (_) => {
     }
 })
 
-let getResultsQueryMessage = {
-    type: MessageType.RatingsQuery,
-    url: document.location.href
-};
+function replaceSingleElement(element : Node | null, rating : number) {
+    if (element !== null) {
+        const div = document.createElement("div");
+        div.setAttribute("rate-it-all", "true");
+        div.className = "rate-it-all";
 
-browser.runtime.sendMessage(getResultsQueryMessage).then(r => {
-    console.log("Results:", r);
-    Object.keys(r).forEach(key => {
-        let element = document.evaluate(key, document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        if (element !== null) {
-            const div = document.createElement("div");
-            div.setAttribute("rate-it-all", "true");
-            element.parentElement?.appendChild(div);
+        const starsDiv = document.createElement("div");
+        div.appendChild(starsDiv);
+        for (var i = 0; i < 5; i++) {
+            const star = document.createElement("img");
+            if (rating > i) {
+                star.setAttribute("src", browser.runtime.getURL("solid-star.svg"));
+            } else {
+                star.setAttribute("src", browser.runtime.getURL("star.svg"));
+            }
 
-            const span = document.createElement("span");
-            span.innerText = r[key];
-            div.appendChild(span);
-            div.appendChild(element);
+            star.setAttribute("style", "display:inline;height:10px;width:10px;color:yellow");
+            star.style.fill = "#fff";
+            starsDiv.appendChild(star)
         }
-    })
-});
 
-// document.evaluate('//*[@id="__next"]/MAIN[1]/DIV[2]/DIV[1]/DIV[1]/H1[1]', document.body, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        element.parentElement?.insertBefore(div, element);
+        div.appendChild(element);
+    } 
+}
+
+function addRatingWhenReady(xpath: string, rating: number) {
+    const isReadyInterval = setInterval(() => {
+        let xpathResult = document.evaluate(xpath, document.body, null, XPathResult.ANY_TYPE, null);
+        console.debug(xpathResult);
+        if (xpathResult.resultType === XPathResult.FIRST_ORDERED_NODE_TYPE) {
+            clearInterval(isReadyInterval);
+            replaceSingleElement(xpathResult.singleNodeValue, rating);
+        } else if (xpathResult.resultType === XPathResult.UNORDERED_NODE_ITERATOR_TYPE || xpathResult.resultType === xpathResult.ORDERED_NODE_ITERATOR_TYPE) {
+            var node : Node | null = null;
+            while(node = xpathResult.iterateNext()) {
+                console.debug("Node: ", node);
+                console.debug("Clearing Interval", isReadyInterval);
+                clearInterval(isReadyInterval);
+                replaceSingleElement(node, rating);
+            }
+        } else if (xpathResult.resultType === XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE || xpathResult.resultType === xpathResult.ORDERED_NODE_SNAPSHOT_TYPE) {
+            for(var i = 0;i<xpathResult.snapshotLength;i++) {
+                clearInterval(isReadyInterval);
+                replaceSingleElement(xpathResult.snapshotItem(i), rating);
+            }
+        }
+    }, 500);
+    console.debug("Setting Interval", isReadyInterval);
+}
+
+window.addEventListener('load', async () => {
+    let getResultsQueryMessage = {
+        type: MessageType.RatingsQuery,
+        url: document.location.href
+    };
+
+    let ratings : PageRatings = await browser.runtime.sendMessage(getResultsQueryMessage);
+    console.log("Results:", ratings);
+
+    if(ratings === undefined) return;
+    Object.keys(ratings).forEach(xpath => {
+        addRatingWhenReady(xpath, ratings[xpath])
+    });
+});

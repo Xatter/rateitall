@@ -1,3 +1,6 @@
+export type PageRatings = {[xpath: string]: number};
+export type Ratings = {[url: string]: PageRatings};
+
 export enum MessageType {
     Selection,
     Rating,
@@ -14,7 +17,7 @@ export type SelectElementMessage = {
 export type RatingMessage = {
     type: MessageType.Rating
     url : string
-    rating : Number
+    rating : number
 }
 
 export type RatingsQueryMessage = {

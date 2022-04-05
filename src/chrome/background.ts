@@ -1,4 +1,4 @@
-import { AppMessage, MessageType } from "../types";
+import { AppMessage, MessageType, PageRatings, Ratings, SelectElementMessage } from "../types";
 
 console.log("[background.js] Loaded");
 
@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, response
         console.log("Selected: ", m.path);
 
         //TODO: Store this path in the storage API because this script gets reloaded all the time so can't maintain in-memory copy
-        await browser.storage.local.set({ "currentSelection": m.path });
+        await browser.storage.local.set({ "currentSelection": m});
     } else if (m.type === MessageType.Rating) {
         const queryInfo = { active: true, lastFocusedWindow: true };
 
@@ -19,21 +19,21 @@ chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, response
             console.error("could not get URL when trying to set rating. Rating not saved");
             return;
         } else {
-            let url = tabs[0].url;
             let currentSelectionStorage = await browser.storage.local.get("currentSelection");
-            let currentSelection = currentSelectionStorage.currentSelection;
+            let currentSelection : SelectElementMessage = currentSelectionStorage.currentSelection;
+            let url = currentSelection.url;
 
             // Upsert
-            let allRatings = await browser.storage.local.get(url);
+            let allRatings : Ratings = await browser.storage.local.get(url);
             if (allRatings[url] === undefined) {
-                await browser.storage.local.set({ [url]: { [currentSelection]: m.rating } });
+                await browser.storage.local.set({ [url]: { [currentSelection.path]: m.rating } });
                 return;
             }
 
             console.log("Current: ", allRatings[url]);
-            let updatedRatings = {
+            let updatedRatings : PageRatings = {
                 ...allRatings[url],
-                [currentSelection]:m.rating
+                [currentSelection.path]:m.rating
             }
 
             console.log("Updated: ", updatedRatings);
@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, response
         }
     } else if (m.type === MessageType.RatingsQuery) {
         let url = m.url
-        let savedRatings = await browser.storage.local.get(url);
+        let savedRatings : Ratings = await browser.storage.local.get(url);
         console.log("Retrieved ratings: ", savedRatings[url]);
         return savedRatings[url];
     } else {
