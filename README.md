@@ -14,6 +14,8 @@ As such all the ratings are kept locally on your browser and never transmitted a
 
 ## Build and develop locally
 
+This extension is written in TypeScript and React (because it's what I know). Thus it needs to be compiled into javascript in order to work.
+
     git pull https://github.com/xatter/rateitall
     cd rateitall
     npm build
