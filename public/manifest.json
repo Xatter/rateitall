@@ -2,7 +2,14 @@
   "manifest_version": 2,
   "name": "Mr. Rate It All",
   "description": "Rate anything you can select on any website",
+  "author": "Jim Wallace",
   "version": "0.1",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "b9b6ee8e-8dea-4777-93f5-97136b08e3e6",
+      "strict_min_version": "42.0"
+    }
+  },
   "browser_action": {
     "default_popup": "index.html",
     "default_title": "Rate It!"
