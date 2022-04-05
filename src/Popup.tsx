@@ -34,11 +34,20 @@ function Popup() {
     browser.runtime.sendMessage(message);
   }
 
+  const clearAllRatings = () => {
+    let message = {
+      type: MessageType.ClearRatings
+    };
+
+    browser.runtime.sendMessage(message);
+  }
+
   return (
     <div className="App">
       <header className="App-header">
         <button onClick={getAllRatings}>Ratings</button>
         <Rating onChange={sendRating} />
+        <button onClick={clearAllRatings}>Clear all Ratings</button>
       </header>
     </div>
   );

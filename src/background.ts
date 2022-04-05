@@ -69,6 +69,9 @@ chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, _) => {
                 console.log("Retrieved ratings: ", savedRatings[url]);
                 return savedRatings[url];
             }
+        case MessageType.ClearRatings:
+            browser.storage.local.clear();
+            break;
         default:
             console.error("Unknown message received");
     }
