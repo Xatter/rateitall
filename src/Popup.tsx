@@ -1,55 +1,56 @@
 import { useEffect, useState } from 'react';
-import { RatingMessage, MessageType } from "./types";
-import Rating from 'react-rating';
-
+import { MessageType, PageRatings, RatingData } from "./types";
 import './Popup.css';
 
 function Popup() {
-  const [url, setUrl] = useState<string>('');
+    const [ratings, setRatings] = useState<PageRatings | null>(null);
+    const [url, setUrl] = useState<string>('');
 
-  useEffect(() => {
-    const queryInfo = { active: true, lastFocusedWindow: true };
-    browser.tabs && browser.tabs.query(queryInfo).then(tabs => {
-      const url = tabs[0].url || '';
-      setUrl(url);
-    })
-  });
+    useEffect(() => {
+        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+            const tabUrl = tabs[0]?.url ?? '';
+            setUrl(tabUrl);
+            chrome.runtime.sendMessage(
+                { type: MessageType.RatingsQuery, url: tabUrl },
+                (result: PageRatings | null) => { setRatings(result); }
+            );
+        });
+    }, []);
 
-  const sendRating = (newValue: number) => {
-    let message: RatingMessage = {
-      type: MessageType.Rating,
-      url: url,
-      rating: newValue
-    }
-
-    browser.runtime.sendMessage(message);
-  };
-
-  const getAllRatings = () => {
-    let message = {
-      type: MessageType.RatingsQuery
-    }
-
-    browser.runtime.sendMessage(message);
-  }
-
-  const clearAllRatings = () => {
-    let message = {
-      type: MessageType.ClearRatings
+    const clearAll = () => {
+        chrome.runtime.sendMessage({ type: MessageType.ClearRatings });
+        setRatings(null);
     };
 
-    browser.runtime.sendMessage(message);
-  }
+    const entries = ratings ? Object.entries(ratings) : [];
 
-  return (
-    <div className="App">
-      <header className="App-header">
-        <button onClick={getAllRatings}>Ratings</button>
-        <Rating onChange={sendRating} />
-        <button onClick={clearAllRatings}>Clear all Ratings</button>
-      </header>
-    </div>
-  );
+    return (
+        <div style={{ minWidth: 300, padding: 16, fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Ratings on this page</h3>
+
+            {entries.length === 0 ? (
+                <p style={{ color: '#888', margin: '0 0 12px' }}>
+                    No ratings yet. Right-click any selected text and choose <strong>Rate It!</strong>
+                </p>
+            ) : (
+                <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
+                    {entries.map(([xpath, data]: [string, RatingData]) => (
+                        <li key={xpath} style={{ marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 10 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 2 }}>{data.text}</div>
+                            <div style={{ color: '#f5a623', fontSize: 18 }}>
+                                {'★'.repeat(data.rating)}{'☆'.repeat(5 - data.rating)}
+                            </div>
+                            {data.note && <div style={{ color: '#555', marginTop: 2 }}>{data.note}</div>}
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            <button onClick={clearAll} style={{ padding: '6px 12px', cursor: 'pointer' }}>
+                Clear all ratings
+            </button>
+        </div>
+    );
 }
 
 export default Popup;

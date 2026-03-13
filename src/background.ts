@@ -1,78 +1,77 @@
-import { AppMessage, MessageType, PageRatings, RatedMessage, Ratings, RatingType, SelectElementMessage } from "./types";
+import { AppMessage, MessageType, PageRatings, RatingData, RatingType, SelectElementMessage } from "./types";
 
 console.log("[background.js] Loaded");
 
-chrome.runtime.onMessage.addListener(async (m: AppMessage, sender: any, _) => {
-    // console.debug(m);
+// Register the right-click context menu item once on install
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "rate-it-all",
+        title: "Rate It!",
+        contexts: ["selection"]
+    });
+});
 
+// Context menu click → tell the content script to show the rating widget
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "rate-it-all" && tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { type: MessageType.ShowRatingWidget });
+    }
+});
+
+chrome.runtime.onMessage.addListener((m: AppMessage, sender, sendResponse) => {
     switch (m.type) {
-        case MessageType.Rated:
-            // ignore
-            break;
         case MessageType.Selection:
-            if (sender.envType === "addon_child") return;
-            console.log("Selected: ", m.path);
-
-            //TODO: Store this path in the storage API because this script gets reloaded all the time so can't maintain in-memory copy
-            await browser.storage.local.set({ "currentSelection": m });
+            chrome.storage.local.set({ currentSelection: m });
             break;
-        case MessageType.Rating:
-            {
-                let currentSelectionStorage = await browser.storage.local.get("currentSelection");
-                let currentSelection: SelectElementMessage = currentSelectionStorage.currentSelection;
-                let url = currentSelection.url;
 
-                // Upsert
-                let allRatings: Ratings = await browser.storage.local.get(url);
-                if (allRatings[url] === undefined) {
-                    await browser.storage.local.set({ [url]: { [currentSelection.path]: m.rating } });
+        case MessageType.Rating: {
+            (async () => {
+                const selStorage = await chrome.storage.local.get("currentSelection");
+                const currentSelection: SelectElementMessage = selStorage.currentSelection;
+                if (!currentSelection) { sendResponse(null); return; }
 
-                    let responseMessage = 
-                    {
-                        type: MessageType.Rated,
-                        ratingType: RatingType.Added,
-                        url: url,
-                        path: currentSelection.path,
-                        rating: m.rating
-                    };
-
-                    browser.runtime.sendMessage(responseMessage);
-                    return responseMessage;
-                }
-
-                console.log("Current: ", allRatings[url]);
-                let updatedRatings: PageRatings = {
-                    ...allRatings[url],
-                    [currentSelection.path]: m.rating
-                }
-
-                console.log("Updated: ", updatedRatings);
-
-                await browser.storage.local.set({ [url]: updatedRatings });
-
-                let responseMessage =
-                {
-                    type: MessageType.Rated,
-                    ratingType: allRatings[url][currentSelection.path] === undefined ? RatingType.Added : RatingType.Updated,
-                    url: url,
-                    path: currentSelection.path,
-                    rating: m.rating
+                const url = currentSelection.url;
+                const data: RatingData = {
+                    rating: m.rating,
+                    note: m.note,
+                    text: currentSelection.text
                 };
 
-                browser.runtime.sendMessage(responseMessage);
-                return responseMessage;
-            }
-        case MessageType.RatingsQuery:
-            {
-                let url = m.url
-                let savedRatings: Ratings = await browser.storage.local.get(url);
-                console.log("Retrieved ratings: ", savedRatings[url]);
-                return savedRatings[url];
-            }
+                const stored = await chrome.storage.local.get(url);
+                const existing: PageRatings = stored[url] ?? {};
+                const isUpdate = existing[currentSelection.path] !== undefined;
+
+                await chrome.storage.local.set({
+                    [url]: { ...existing, [currentSelection.path]: data }
+                });
+
+                const responseMessage = {
+                    type: MessageType.Rated,
+                    ratingType: isUpdate ? RatingType.Updated : RatingType.Added,
+                    url,
+                    path: currentSelection.path,
+                    data
+                };
+
+                // Push the Rated message to the content script so it can render the badge
+                if (sender.tab?.id) {
+                    chrome.tabs.sendMessage(sender.tab.id, responseMessage);
+                }
+
+                sendResponse(responseMessage);
+            })();
+            return true; // keep message channel open for async sendResponse
+        }
+
+        case MessageType.RatingsQuery: {
+            chrome.storage.local.get(m.url).then(stored => {
+                sendResponse(stored[m.url] ?? null);
+            });
+            return true;
+        }
+
         case MessageType.ClearRatings:
-            browser.storage.local.clear();
+            chrome.storage.local.clear();
             break;
-        default:
-            console.error("Unknown message received");
     }
 });

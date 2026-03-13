@@ -1,16 +1,10 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Mr. Rate It All",
   "description": "Rate anything you can select on any website",
   "author": "Jim Wallace",
-  "version": "0.1",
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{b9b6ee8e-8dea-4777-93f5-97136b08e3e6}",
-      "strict_min_version": "42.0"
-    }
-  },
-  "browser_action": {
+  "version": "0.1.0",
+  "action": {
     "default_popup": "index.html",
     "default_title": "Rate It!"
   },
@@ -26,7 +20,6 @@
         "https://*/*"
       ],
       "js": [
-        "./jquery-3.6.0.slim.min.js",
         "./static/js/content.js"
       ],
       "all_frames": false,
@@ -34,14 +27,11 @@
     }
   ],
   "background": {
-    "scripts":["./static/js/background.js"]
+    "service_worker": "./static/js/background.js"
   },
   "permissions": [
     "activeTab",
-    "storage"
-  ],
-  "web_accessible_resources": [
-    "solid-start.svg",
-    "star.svg"
+    "storage",
+    "contextMenus"
   ]
 }

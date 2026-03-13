@@ -1,145 +1,254 @@
-import { PageRatings, AppMessage, MessageType, RatingType } from "./types";
+import { PageRatings, AppMessage, MessageType, RatingType, RatingData, RatingMessage } from "./types";
+import { getPathTo } from "./xpath";
 
+const MAX_RETRY_ATTEMPTS = 20;
 
-function getPathTo(element: HTMLElement): string | undefined {
-    if (element.id !== '')
-        return '//*[@id="' + element.id + '"]';
-    if (element === document.body)
-        return element.tagName;
-    if (element.hasAttribute("rate-it-all"))
-        return getPathTo(<HTMLElement>element.parentNode);
+// Last captured selection, updated on every mouseup and contextmenu
+let currentSelection: { path: string; text: string; rect: DOMRect } | null = null;
+let ratingWidget: HTMLElement | null = null;
 
-    var ix = 0;
-    if (element.parentNode !== null && element.parentNode.children !== null) {
-        var siblings = element.parentNode.childNodes;
-        for (var i = 0; i < siblings.length; i++) {
-            var sibling = <HTMLElement>siblings[i];
-            if (sibling === element)
-                return getPathTo(<HTMLElement>element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';
-            if (sibling.nodeType === 1 && sibling.tagName === element.tagName)
-                ix++;
-        }
-    }
+function captureSelection(): { path: string; text: string; rect: DOMRect } | null {
+    const sel = document.getSelection();
+    if (!sel || !sel.toString().trim() || !sel.rangeCount) return null;
+    const focusNode = sel.focusNode;
+    if (!focusNode?.parentElement) return null;
+    const path = getPathTo(focusNode.parentElement);
+    if (!path) return null;
+    return { path, text: sel.toString().trim(), rect: sel.getRangeAt(0).getBoundingClientRect() };
 }
 
-chrome.runtime.onMessage.addListener((message: AppMessage, sender: any, response: any) => {
-    console.debug('[content.js]. Message received', {
-        message,
-        sender
-    });
+// Capture text selections on mouseup (general tracking)
+document.addEventListener("mouseup", () => {
+    const captured = captureSelection();
+    if (!captured) return;
+    currentSelection = captured;
+    chrome.runtime.sendMessage(
+        { type: MessageType.Selection, url: document.location.href, path: captured.path, text: captured.text },
+        () => { void chrome.runtime.lastError; /* suppress "no listener" errors */ }
+    );
+});
 
-    switch(message.type) {
-        case MessageType.Selection:
-            break;
-        case MessageType.Rated:
-            if(message.ratingType === RatingType.Added) {
-                addRatingWhenReady(message.path, message.rating);
+// Snapshot the selection on contextmenu — this fires before the user clicks any
+// menu item, so the text selection is guaranteed to still be active. By the time
+// ShowRatingWidget arrives, Chrome has already cleared the selection.
+document.addEventListener("contextmenu", () => {
+    const captured = captureSelection();
+    if (captured) currentSelection = captured;
+});
+
+// Messages from the background service worker
+chrome.runtime.onMessage.addListener((message: AppMessage) => {
+    switch (message.type) {
+        case MessageType.ShowRatingWidget: {
+            // Re-query the live selection — it's still active when the context menu fires,
+            // and this gives us a fresh rect even if the page was scrolled since mouseup.
+            const live = captureSelection();
+            console.debug('[rate-it-all] ShowRatingWidget — live selection:', live, 'stored:', currentSelection);
+            if (live) {
+                showRatingWidget(live);
+            } else if (currentSelection) {
+                // Fallback to the last stored selection
+                showRatingWidget(currentSelection);
             }
             break;
-        default:
-            console.error("[content.js] Unknown message", message);
+        }
+        case MessageType.Rated:
+            addRatingWhenReady(message.path, message.data);
+            hideRatingWidget();
+            break;
     }
 });
 
-document.addEventListener("mouseup", (_) => {
-    let selection = document.getSelection();
-    if (selection === null) {
-        return;
+// ── Floating rating widget ─────────────────────────────────────────────────
+
+function showRatingWidget(sel: { path: string; text: string; rect: DOMRect }) {
+    hideRatingWidget();
+
+    const widget = document.createElement("div");
+    widget.id = "rate-it-all-widget";
+    widget.setAttribute("rate-it-all", "true");
+
+    const { bottom, left } = sel.rect;
+    widget.style.cssText = `
+        position: fixed;
+        top: ${Math.min(bottom + 8, window.innerHeight - 280)}px;
+        left: ${Math.min(Math.max(8, left), window.innerWidth - 320)}px;
+        z-index: 2147483647;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        width: 280px;
+        box-sizing: border-box;
+    `;
+
+    // Selected text label
+    const label = document.createElement("div");
+    label.style.cssText = "font-weight: 600; margin-bottom: 10px; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+    label.title = sel.text;
+    label.textContent = sel.text;
+    widget.appendChild(label);
+
+    // Stars
+    let selectedRating = 0;
+    const starsContainer = document.createElement("div");
+    starsContainer.style.cssText = "display: flex; gap: 4px; margin-bottom: 10px; cursor: pointer;";
+
+    const stars: HTMLSpanElement[] = [];
+
+    function highlightStars(upTo: number) {
+        stars.forEach((s, idx) => {
+            s.textContent = idx < upTo ? "★" : "☆";
+            s.style.color = idx < upTo ? "#f5a623" : "#bbb";
+        });
     }
 
-    if (selection.focusNode !== null && selection.focusNode.parentElement !== null) {
-        let path = getPathTo(selection.focusNode.parentElement)
-
-        chrome.runtime.sendMessage(
-            {
-                type: MessageType.Selection,
-                url: document.location.href,
-                path: path,
-                text: selection.toString()
-            }
-        )
+    for (let i = 1; i <= 5; i++) {
+        const star = document.createElement("span");
+        star.textContent = "☆";
+        star.style.cssText = "font-size: 28px; color: #bbb; transition: color 0.1s; line-height: 1; user-select: none;";
+        star.addEventListener("mouseover", () => highlightStars(i));
+        star.addEventListener("mouseout", () => highlightStars(selectedRating));
+        star.addEventListener("click", () => {
+            selectedRating = i;
+            highlightStars(i);
+        });
+        stars.push(star);
+        starsContainer.appendChild(star);
     }
-})
+    widget.appendChild(starsContainer);
 
-function replaceSingleElement(element : Node | null, rating : number) {
-    if (element !== null) {
-        // const observer = new MutationObserver((mutations : MutationRecord[], observer:MutationObserver) => {
-        //     for(const mutation of mutations) {
-        //         console.debug("Mutation:", mutation);
-        //     }
-        // });
+    // Notes
+    const notes = document.createElement("textarea");
+    notes.placeholder = "Notes (optional)...";
+    notes.style.cssText = "width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; padding: 7px 9px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 56px; margin-bottom: 10px; outline: none;";
+    widget.appendChild(notes);
 
-        // observer.observe(element);
+    // Buttons
+    const buttonRow = document.createElement("div");
+    buttonRow.style.cssText = "display: flex; gap: 8px; justify-content: flex-end;";
 
-        const div = document.createElement("div");
-        div.setAttribute("rate-it-all", "true");
-        div.className = "rate-it-all";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "padding: 6px 14px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; background: #fff; font-size: 13px;";
+    cancelBtn.addEventListener("click", hideRatingWidget);
 
-        const starsDiv = document.createElement("div");
-        div.appendChild(starsDiv);
-        for (var i = 0; i < 5; i++) {
-            const star = document.createElement("img");
-            if (rating > i) {
-                star.setAttribute("src", browser.runtime.getURL("solid-star.svg"));
-            } else {
-                star.setAttribute("src", browser.runtime.getURL("star.svg"));
-            }
-
-            star.setAttribute("style", "display:inline;height:10px;width:10px;color:yellow");
-            star.style.fill = "#fff";
-            starsDiv.appendChild(star)
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Save";
+    saveBtn.style.cssText = "padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; background: #4CAF50; color: #fff; font-weight: 600; font-size: 13px;";
+    saveBtn.addEventListener("click", () => {
+        if (selectedRating === 0) {
+            label.style.color = "#cc0000";
+            label.textContent = "Pick a star rating first";
+            setTimeout(() => { label.style.color = "#222"; label.textContent = sel.text; }, 2000);
+            return;
         }
+        const msg: RatingMessage = {
+            type: MessageType.Rating,
+            url: document.location.href,
+            rating: selectedRating,
+            note: notes.value.trim()
+        };
+        chrome.runtime.sendMessage(msg, () => { void chrome.runtime.lastError; });
+    });
 
-        element.parentElement?.insertBefore(div, element);
-        div.appendChild(element);
-    } 
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(saveBtn);
+    widget.appendChild(buttonRow);
+
+    document.body.appendChild(widget);
+    ratingWidget = widget;
+
+    // Focus the notes field so the user can start typing immediately after starring
+    notes.addEventListener("click", (e) => e.stopPropagation());
 }
 
-function addRatingWhenReady(xpath: string, rating: number) {
-    const isReadyInterval = setInterval(() => {
-        let xpathResult = document.evaluate(xpath, document.body, null, XPathResult.ANY_TYPE, null);
-        console.debug(xpathResult);
+function hideRatingWidget() {
+    ratingWidget?.remove();
+    ratingWidget = null;
+}
 
-        switch(xpathResult.resultType) {
+// Close on outside click
+document.addEventListener("mousedown", (e) => {
+    if (ratingWidget && !ratingWidget.contains(e.target as Node)) {
+        hideRatingWidget();
+    }
+});
+
+// ── Inline rating badges ───────────────────────────────────────────────────
+
+function addRatingBadge(element: Node, data: RatingData) {
+    if (!(element instanceof HTMLElement)) return;
+
+    // Don't double-wrap
+    if (element.parentElement?.hasAttribute("rate-it-all")) return;
+
+    const wrapper = document.createElement("span");
+    wrapper.setAttribute("rate-it-all", "true");
+    wrapper.style.cssText = "display: inline-block;";
+
+    const badge = document.createElement("span");
+    badge.style.cssText = "display: block; font-size: 11px; line-height: 1; margin-bottom: 2px; color: #555;";
+    badge.textContent = "★".repeat(data.rating) + "☆".repeat(5 - data.rating);
+    if (data.note) {
+        badge.title = data.note;
+        badge.style.cursor = "help";
+    }
+
+    element.parentElement?.insertBefore(wrapper, element);
+    wrapper.appendChild(badge);
+    wrapper.appendChild(element);
+}
+
+function addRatingWhenReady(xpath: string, data: RatingData) {
+    let attempts = 0;
+    const interval = setInterval(() => {
+        if (++attempts >= MAX_RETRY_ATTEMPTS) {
+            clearInterval(interval);
+            return;
+        }
+
+        const result = document.evaluate(xpath, document.body, null, XPathResult.ANY_TYPE, null);
+
+        switch (result.resultType) {
             case XPathResult.FIRST_ORDERED_NODE_TYPE:
-                clearInterval(isReadyInterval);
-                replaceSingleElement(xpathResult.singleNodeValue, rating);
+                clearInterval(interval);
+                if (result.singleNodeValue) addRatingBadge(result.singleNodeValue, data);
                 break;
             case XPathResult.UNORDERED_NODE_ITERATOR_TYPE:
-            case XPathResult.ORDERED_NODE_ITERATOR_TYPE:
-                var node : Node | null = null;
-                while(node = xpathResult.iterateNext()) {
-                    console.debug("Node: ", node);
-                    console.debug("Clearing Interval", isReadyInterval);
-                    clearInterval(isReadyInterval);
-                    replaceSingleElement(node, rating);
+            case XPathResult.ORDERED_NODE_ITERATOR_TYPE: {
+                let node: Node | null;
+                while ((node = result.iterateNext())) {
+                    clearInterval(interval);
+                    addRatingBadge(node, data);
                 }
                 break;
-            case xpathResult.UNORDERED_NODE_SNAPSHOT_TYPE:
-            case xpathResult.ORDERED_NODE_SNAPSHOT_TYPE:
-                for(var i = 0;i<xpathResult.snapshotLength;i++) {
-                    clearInterval(isReadyInterval);
-                    replaceSingleElement(xpathResult.snapshotItem(i), rating);
+            }
+            case XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE:
+            case XPathResult.ORDERED_NODE_SNAPSHOT_TYPE:
+                for (let i = 0; i < result.snapshotLength; i++) {
+                    clearInterval(interval);
+                    const item = result.snapshotItem(i);
+                    if (item) addRatingBadge(item, data);
                 }
                 break;
-        default:
-            console.error("Unhandled xpath result type", xpathResult.resultType);
         }
     }, 500);
-    console.debug("Setting Interval", isReadyInterval);
 }
 
-window.addEventListener('load', async () => {
-    let getResultsQueryMessage = {
-        type: MessageType.RatingsQuery,
-        url: document.location.href
-    };
-
-    let ratings : PageRatings = await browser.runtime.sendMessage(getResultsQueryMessage);
-    console.log("Results:", ratings);
-
-    if(ratings === undefined) return;
-    Object.keys(ratings).forEach(xpath => {
-        addRatingWhenReady(xpath, ratings[xpath])
-    });
+// On page load, restore all saved ratings for this URL
+window.addEventListener('load', () => {
+    chrome.runtime.sendMessage(
+        { type: MessageType.RatingsQuery, url: document.location.href },
+        (ratings: PageRatings | null) => {
+            if (chrome.runtime.lastError) return; // extension not ready
+            if (!ratings) return;
+            Object.entries(ratings).forEach(([xpath, data]) => {
+                addRatingWhenReady(xpath, data);
+            });
+        }
+    );
 });
