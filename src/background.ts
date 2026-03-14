@@ -1,6 +1,12 @@
-import { AppMessage, MessageType, PageRatings, RatingData, RatingType, SelectElementMessage } from "./types";
+import { AppMessage, MessageType, PageRatings, RatingData, RatingType, SelectElementMessage, UrlChangedMessage } from "./types";
 
 console.log("[background.js] Loaded");
+
+// SPA navigation: fire when any tab changes URL via the History API
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    const msg: UrlChangedMessage = { type: MessageType.UrlChanged, url: details.url };
+    chrome.tabs.sendMessage(details.tabId, msg, () => { void chrome.runtime.lastError; });
+});
 
 // Register the right-click context menu item once on install
 chrome.runtime.onInstalled.addListener(() => {

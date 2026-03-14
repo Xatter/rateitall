@@ -1,5 +1,8 @@
 import { PageRatings, AppMessage, MessageType, RatingType, RatingData, RatingMessage } from "./types";
 import { getPathTo } from "./xpath";
+import { installClickProtection } from "./click-protection";
+
+installClickProtection();
 
 const MAX_RETRY_ATTEMPTS = 20;
 
@@ -55,6 +58,9 @@ chrome.runtime.onMessage.addListener((message: AppMessage) => {
         case MessageType.Rated:
             addRatingWhenReady(message.path, message.data);
             hideRatingWidget();
+            break;
+        case MessageType.UrlChanged:
+            loadRatingsForUrl(message.url);
             break;
     }
 });
@@ -239,10 +245,9 @@ function addRatingWhenReady(xpath: string, data: RatingData) {
     }, 500);
 }
 
-// On page load, restore all saved ratings for this URL
-window.addEventListener('load', () => {
+function loadRatingsForUrl(url: string) {
     chrome.runtime.sendMessage(
-        { type: MessageType.RatingsQuery, url: document.location.href },
+        { type: MessageType.RatingsQuery, url },
         (ratings: PageRatings | null) => {
             if (chrome.runtime.lastError) return; // extension not ready
             if (!ratings) return;
@@ -251,4 +256,8 @@ window.addEventListener('load', () => {
             });
         }
     );
-});
+}
+
+// On initial page load, restore all saved ratings for this URL
+window.addEventListener('load', () => loadRatingsForUrl(document.location.href));
+// SPA navigation is handled via MessageType.UrlChanged sent by the background worker

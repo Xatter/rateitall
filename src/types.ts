@@ -8,7 +8,8 @@ export enum MessageType {
     RatingsQuery,
     Rated,
     ClearRatings,
-    ShowRatingWidget
+    ShowRatingWidget,
+    UrlChanged
 }
 
 export enum RatingType {
@@ -51,10 +52,16 @@ export type ShowRatingWidgetMessage = {
     type: MessageType.ShowRatingWidget;
 };
 
+export type UrlChangedMessage = {
+    type: MessageType.UrlChanged;
+    url: string;
+};
+
 export type AppMessage =
     | SelectElementMessage
     | RatingMessage
     | RatingsQueryMessage
     | RatedMessage
     | ClearRatingsMessage
-    | ShowRatingWidgetMessage;
+    | ShowRatingWidgetMessage
+    | UrlChangedMessage;

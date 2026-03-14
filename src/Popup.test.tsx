@@ -22,7 +22,7 @@ test('shows empty state when there are no ratings', async () => {
 
     await act(async () => { render(<Popup />); });
 
-    expect(screen.getByText(/No ratings yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/None yet/i)).toBeInTheDocument();
 });
 
 test('renders ratings returned from storage', async () => {
