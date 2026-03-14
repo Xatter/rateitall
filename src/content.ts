@@ -226,21 +226,30 @@ function addRatingWhenReady(xpath: string, data: RatingData) {
                 break;
             case XPathResult.UNORDERED_NODE_ITERATOR_TYPE:
             case XPathResult.ORDERED_NODE_ITERATOR_TYPE: {
+                // Collect all nodes before touching the DOM — iterateNext() throws
+                // InvalidStateError if the document mutates mid-iteration.
+                const nodes: Node[] = [];
                 let node: Node | null;
-                while ((node = result.iterateNext())) {
+                while ((node = result.iterateNext())) nodes.push(node);
+                if (nodes.length) {
                     clearInterval(interval);
-                    addRatingBadge(node, data);
+                    nodes.forEach(n => addRatingBadge(n, data));
                 }
                 break;
             }
             case XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE:
-            case XPathResult.ORDERED_NODE_SNAPSHOT_TYPE:
+            case XPathResult.ORDERED_NODE_SNAPSHOT_TYPE: {
+                const items: Node[] = [];
                 for (let i = 0; i < result.snapshotLength; i++) {
-                    clearInterval(interval);
                     const item = result.snapshotItem(i);
-                    if (item) addRatingBadge(item, data);
+                    if (item) items.push(item);
+                }
+                if (items.length) {
+                    clearInterval(interval);
+                    items.forEach(n => addRatingBadge(n, data));
                 }
                 break;
+            }
         }
     }, 500);
 }
