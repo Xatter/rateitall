@@ -20,20 +20,29 @@ function captureSelection(): { path: string; text: string; rect: DOMRect } | nul
     return { path, text: sel.toString().trim(), rect: sel.getRangeAt(0).getBoundingClientRect() };
 }
 
-// Capture text selections on mouseup (general tracking)
-document.addEventListener("mouseup", () => {
+// Track selection as it changes — fires during drag, before any page script
+// can clear it on mouseup (e.g. Amazon clears the selection in their own
+// mouseup handler, which was registered before our content script loaded).
+// Only update the local variable here; send the message on mouseup to avoid
+// hammering the runtime on every cursor movement.
+document.addEventListener("selectionchange", () => {
     const captured = captureSelection();
-    if (!captured) return;
-    currentSelection = captured;
-    chrome.runtime.sendMessage(
-        { type: MessageType.Selection, url: document.location.href, path: captured.path, text: captured.text },
-        () => { void chrome.runtime.lastError; /* suppress "no listener" errors */ }
-    );
+    if (captured) currentSelection = captured;
 });
 
-// Snapshot the selection on contextmenu — this fires before the user clicks any
-// menu item, so the text selection is guaranteed to still be active. By the time
-// ShowRatingWidget arrives, Chrome has already cleared the selection.
+// Notify the background of the final selection once the user releases the mouse.
+document.addEventListener("mouseup", () => {
+    if (!currentSelection) return;
+    try {
+        chrome.runtime.sendMessage(
+            { type: MessageType.Selection, url: document.location.href, path: currentSelection.path, text: currentSelection.text },
+            () => { void chrome.runtime.lastError; }
+        );
+    } catch { /* extension context invalidated — ignore */ }
+});
+
+// Snapshot the selection on contextmenu — belt-and-suspenders in case
+// selectionchange hasn't fired recently.
 document.addEventListener("contextmenu", () => {
     const captured = captureSelection();
     if (captured) currentSelection = captured;
@@ -158,7 +167,9 @@ function showRatingWidget(sel: { path: string; text: string; rect: DOMRect }) {
             rating: selectedRating,
             note: notes.value.trim()
         };
-        chrome.runtime.sendMessage(msg, () => { void chrome.runtime.lastError; });
+        try {
+            chrome.runtime.sendMessage(msg, () => { void chrome.runtime.lastError; });
+        } catch { /* extension context invalidated */ }
     });
 
     buttonRow.appendChild(cancelBtn);
@@ -255,16 +266,18 @@ function addRatingWhenReady(xpath: string, data: RatingData) {
 }
 
 function loadRatingsForUrl(url: string) {
-    chrome.runtime.sendMessage(
-        { type: MessageType.RatingsQuery, url },
-        (ratings: PageRatings | null) => {
-            if (chrome.runtime.lastError) return; // extension not ready
-            if (!ratings) return;
-            Object.entries(ratings).forEach(([xpath, data]) => {
-                addRatingWhenReady(xpath, data);
-            });
-        }
-    );
+    try {
+        chrome.runtime.sendMessage(
+            { type: MessageType.RatingsQuery, url },
+            (ratings: PageRatings | null) => {
+                if (chrome.runtime.lastError) return; // extension not ready
+                if (!ratings) return;
+                Object.entries(ratings).forEach(([xpath, data]) => {
+                    addRatingWhenReady(xpath, data);
+                });
+            }
+        );
+    } catch { /* extension context invalidated */ }
 }
 
 // On initial page load, restore all saved ratings for this URL
