@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { MessageType, PageRatings, RatingData } from "./types";
+import { getModifierLabel } from "./platform";
 import './Popup.css';
+
+const modifierLabel = getModifierLabel();
 
 function Popup() {
     const [ratings, setRatings] = useState<PageRatings | null>(null);
@@ -26,12 +29,20 @@ function Popup() {
 
     return (
         <div style={{ minWidth: 300, padding: 16, fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Ratings on this page</h3>
+            <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>Mr. Rate It All</h3>
+
+            <div style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', marginBottom: 14, fontSize: 13, color: '#444', lineHeight: 1.5 }}>
+                <strong>How to rate:</strong>
+                <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                    <li>Select text on the page, then right-click → <strong>Rate It!</strong></li>
+                    <li>On sites that block selection (e.g. GrubHub), hold <strong>{modifierLabel}</strong> while dragging to select text first.</li>
+                </ol>
+            </div>
+
+            <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Ratings on this page</h4>
 
             {entries.length === 0 ? (
-                <p style={{ color: '#888', margin: '0 0 12px' }}>
-                    No ratings yet. Right-click any selected text and choose <strong>Rate It!</strong>
-                </p>
+                <p style={{ color: '#888', margin: '0 0 12px' }}>None yet.</p>
             ) : (
                 <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
                     {entries.map(([xpath, data]: [string, RatingData]) => (
