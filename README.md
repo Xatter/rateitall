@@ -16,32 +16,33 @@ As such all the ratings are kept locally on your browser and never transmitted a
 
 This extension is written in TypeScript and React (because it's what I know). Thus it needs to be compiled into javascript in order to work.
 
-    git pull https://github.com/xatter/rateitall
+    git clone https://github.com/xatter/rateitall
     cd rateitall
-    npm build
+    npm install
+    ./build.sh
 
-Once built, you can do
+The build script reads the version from `public/manifest.json`, compiles the extension into the `build/` directory, and creates a `rate-it-all-v<version>.zip` ready for distribution.
+
+Once built, you can load the extension:
 
 On Firefox:
 
 `about:debugging#/runtime/this-firefox`
 
 Click `Load Temporary Add-on`
-Navigate to `rateitall/build/static/manifest.json`
+Navigate to `rateitall/build/manifest.json`
 
 
 On Chrome:
 
-...
+Navigate to `chrome://extensions`, enable Developer Mode, and click `Load unpacked`. Select the `build/` folder.
 
 
 ## Available Scripts
 
-In the project directory, you can run:
+### `./build.sh`
 
-### `npm build`
-
-This builds the typescript and puts the compiled extension into `build/static` so it can be loaded in the browser for debugging. Currently only "production builds" are supported (minimized JS which is difficult to debug.)
+Builds the TypeScript and puts the compiled extension into `build/` so it can be loaded in the browser for debugging. Also produces a `.zip` file for distribution.
 
 ### `npm test`
 
