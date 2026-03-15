@@ -20,7 +20,9 @@ chrome.runtime.onInstalled.addListener(() => {
 // Context menu click → tell the content script to show the rating widget
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "rate-it-all" && tab?.id) {
-        chrome.tabs.sendMessage(tab.id, { type: MessageType.ShowRatingWidget });
+        try {
+            chrome.tabs.sendMessage(tab.id, { type: MessageType.ShowRatingWidget }, () => { void chrome.runtime.lastError; });
+        } catch { /* content script not available */ }
     }
 });
 
@@ -61,7 +63,9 @@ chrome.runtime.onMessage.addListener((m: AppMessage, sender, sendResponse) => {
 
                 // Push the Rated message to the content script so it can render the badge
                 if (sender.tab?.id) {
-                    chrome.tabs.sendMessage(sender.tab.id, responseMessage);
+                    try {
+                        chrome.tabs.sendMessage(sender.tab.id, responseMessage, () => { void chrome.runtime.lastError; });
+                    } catch { /* tab closed or content script unloaded */ }
                 }
 
                 sendResponse(responseMessage);

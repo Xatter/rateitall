@@ -37,3 +37,15 @@ test('renders ratings returned from storage', async () => {
     expect(screen.getByText('Really good')).toBeInTheDocument();
     expect(screen.getByText('★★★★☆')).toBeInTheDocument();
 });
+
+test('does not crash when sendMessage throws (background not ready)', async () => {
+    mockQuery.mockImplementation((_filter: any, cb: Function) => cb([{ url: 'https://example.com' }]));
+    mockSendMessage.mockImplementation(() => {
+        throw new Error('Could not establish connection. Receiving end does not exist.');
+    });
+
+    // Should render without throwing
+    await act(async () => { render(<Popup />); });
+
+    expect(screen.getByText(/None yet/i)).toBeInTheDocument();
+});

@@ -13,15 +13,19 @@ function Popup() {
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
             const tabUrl = tabs[0]?.url ?? '';
             setUrl(tabUrl);
-            chrome.runtime.sendMessage(
-                { type: MessageType.RatingsQuery, url: tabUrl },
-                (result: PageRatings | null) => { setRatings(result); }
-            );
+            try {
+                chrome.runtime.sendMessage(
+                    { type: MessageType.RatingsQuery, url: tabUrl },
+                    (result: PageRatings | null) => { setRatings(result); }
+                );
+            } catch { /* background not ready */ }
         });
     }, []);
 
     const clearAll = () => {
-        chrome.runtime.sendMessage({ type: MessageType.ClearRatings });
+        try {
+            chrome.runtime.sendMessage({ type: MessageType.ClearRatings });
+        } catch { /* background not ready */ }
         setRatings(null);
     };
 
